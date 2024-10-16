@@ -1,0 +1,32 @@
+#spring.application.name=notification-service
+
+server:
+  port: 8091
+
+spring:
+  application:
+    name: inventory-service
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKER:localhost:9092}
+    topic:
+      payment-notification: payment-notification
+    consumer:
+      group-id: notification-group
+      auto-offset-reset: latest
+
+  mail:
+    host: ${MAIL_HOST} # smtp.gmail.com
+    port: ${MAIL_PORT} # 587
+    username: ${EMAIL}
+    password: ${PASSWORD_APP}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH} # true
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS_ENABLE} # true
+
+
+logging:
+  level:
+    org:
+      apache:
+        kafka: OFF

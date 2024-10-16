@@ -1,0 +1,127 @@
+services:
+
+  kafka:
+    container_name: kafka
+    image: obsidiandynamics/kafka
+    restart: "no"
+    ports:
+      - "2181:2181"
+      - "9092:9092"
+    networks:
+      - event-drive
+    environment:
+      KAFKA_LISTENERS: "INTERNAL://:29092,EXTERNAL://:9092"
+      KAFKA_ADVERTISED_LISTENERS: "INTERNAL://kafka:29092,EXTERNAL://localhost:9092"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: "INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT"
+      KAFKA_INTER_BROKER_LISTENER_NAME: "INTERNAL"
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT: "6000"
+      KAFKA_RESTART_ATTEMPTS: "10"
+      KAFKA_RESTART_DELAY: "5"
+      ZOOKEEPER_AUTOPURGE_PURGE_INTERVAL: "0"
+#    volumes:
+#      - ./data/kafka/data:/var/lib/kafka/data
+
+  redpanda-console:
+    container_name: redpanda
+    image: docker.redpanda.com/vectorized/console:latest
+    restart: on-failure
+    entrypoint: /bin/sh
+    command: -c "echo \"$$CONSOLE_CONFIG_FILE\" > /tmp/config.yml; /app/console"
+    ports:
+      - "8081:8080"
+    networks:
+      - event-drive
+    environment:
+      CONFIG_FILEPATH: /tmp/config.yml
+      CONSOLE_CONFIG_FILE: |
+        kafka:
+          brokers: ["kafka:29092"]
+    depends_on:
+      - "kafka"
+
+  payment-db:
+    image: postgres:latest
+    container_name: payment-db
+    environment:
+      POSTGRES_DB: payment-db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PG_DATA: /data/postgres
+    networks:
+      - event-drive
+
+    ports:
+      - "5432:5432"
+
+  history-db:
+    image: postgres:latest
+    container_name: history-db
+    environment:
+      POSTGRES_DB: history-db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PG_DATA: /data/postgres
+    networks:
+      - event-drive
+
+    ports:
+      - "5433:5432"
+
+  payment-service:
+    build: ./payment-service
+    container_name: payment-service
+    networks:
+      - event-drive
+    depends_on:
+      - kafka
+      - payment-db
+    environment:
+      KAFKA_BROKER: kafka:29092
+      DB_HOST: payment-db
+      DB_PORT: 5432
+      DB_NAME: payment-db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "8080:8080"
+
+  notification-service:
+    build: ./notification-service
+    container_name: notification-service
+    networks:
+      - event-drive
+    depends_on:
+      - kafka
+    environment:
+      KAFKA_BROKER: kafka:29092
+      EMAIL: # E-mail do remetente
+      PASSWORD_APP: # Senha ou token do e-mail (app password)
+      MAIL_HOST: smtp.gmail.com # Pode mudar para o servidor SMTP usado, como SES
+      MAIL_PORT: 587
+      MAIL_PROTOCOL: smtp
+      MAIL_SMTP_AUTH: "true"
+      MAIL_SMTP_STARTTLS_ENABLE: "true"
+    ports:
+      - "8091:8091"
+
+  history-service:
+    build: ./history-service
+    container_name: history-service
+    networks:
+      - event-drive
+    depends_on:
+      - kafka
+      - history-db
+    environment:
+      KAFKA_BROKER: kafka:29092
+      DB_HOST: history-db
+      DB_PORT: 5432
+      DB_NAME: history-db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "8092:8092"
+
+networks:
+  event-drive:
+    driver: bridge

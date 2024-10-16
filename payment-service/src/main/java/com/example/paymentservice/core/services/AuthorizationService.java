@@ -1,0 +1,38 @@
+package com.example.paymentservice.core.services;
+
+import com.example.paymentservice.config.exception.transaction.InvalidTransactionException;
+import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
+
+import java.util.Map;
+
+@Service
+@RequiredArgsConstructor
+public class AuthorizationService {
+
+    private final RestTemplate restTemplate;
+
+    @Value("${app.authorizationApi}")
+    private String authApiUrl;
+
+    public boolean authorizeTransaction(){
+        try {
+            ResponseEntity<Map> authorizationResponse = restTemplate.getForEntity(this.authApiUrl, Map.class);
+
+            if(authorizationResponse.getStatusCode() == HttpStatus.OK){
+                Map<String, Object> message = (Map<String, Object>) authorizationResponse.getBody().get("data");
+                boolean authResult = (boolean) message.get("authorization");
+                return authResult;
+//                return (boolean) message.get("authorization");
+            }
+            return false;
+        } catch (HttpClientErrorException e){
+            throw new InvalidTransactionException("Invalid transaction");
+        }
+    }
+}
