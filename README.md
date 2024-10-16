@@ -60,7 +60,7 @@ Passe o firstName e a senha no Basic Auth para que seja retornado um token.
 	"value" : 100
 }
 
---> Passe o token gerado pela autenticação no Bearer Token para liberar a rota de transferência.
+--> Passe o token gerado do payer pelo Bearer Token para liberar a rota de transferência.
 ```
 
 ### Rota GET: Listar Usuários
